@@ -1,4 +1,4 @@
-package de.julianweinelt.caesar.worker;
+package de.julianweinelt.caesar.worker.depr;
 
 import de.julianweinelt.caesar.worker.link.CaesarLinkServer;
 import de.julianweinelt.caesar.worker.link.DownloadManager;
@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.awt.*;
 import java.io.File;
 
+@Deprecated(since = "v2")
 @Slf4j
 public class CaesarWorker {
     @Getter
@@ -30,35 +31,26 @@ public class CaesarWorker {
     public void start() {
         downloadManager = new DownloadManager(10);
         log.info("Starting Caesar Worker");
-
-        linkServer = new CaesarLinkServer();
-        linkServer.start();
-    }
-
-    private void startTrayDownloads() {
         File trayIconFile = new File("assets/logo.png");
         new File("assets/status").mkdir();
         trayIconFile.getParentFile().mkdir();
         if (!trayIconFile.exists()) {
             log.info("Starting download of necessary assets");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/logo.png",
-                    "assets/logo.png");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_ready.png",
-                    "assets/status/logo_ready.png");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_afk.png",
-                    "assets/status/logo_afk.png");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_dnd.png",
-                    "assets/status/logo_dnd.png");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_busy.png",
-                    "assets/status/logo_busy.png");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_offline.png",
-                    "assets/status/logo_offline.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/logo.png", "assets/logo.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_ready.png", "assets/status/logo_ready.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_afk.png", "assets/status/logo_afk.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_dnd.png", "assets/status/logo_dnd.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_busy.png", "assets/status/logo_busy.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_offline.png", "assets/status/logo_offline.png");
+            System.exit(1);
         }
         try {
             initTrayIcon();
         } catch (AWTException e) {
             log.error("Error initializing tray icon: {}", e.getMessage());
         }
+        linkServer = new CaesarLinkServer();
+        linkServer.start();
     }
 
     private void initTrayIcon() throws AWTException {

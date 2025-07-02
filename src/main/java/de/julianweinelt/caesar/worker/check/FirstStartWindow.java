@@ -7,13 +7,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class FirstStartWindow {
-    private static ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private JLabel statusLabel;
 
-    public static void main(String[] args) {
-        start();
-    }
-
-    public static void start() {
+    public void start() {
         JFrame frame = new JFrame();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(500, 200);
@@ -31,6 +28,7 @@ public class FirstStartWindow {
         frame.add(lineBreak);
 
         JLabel info = new JLabel("We are preparing everything for you...");
+        statusLabel = info;
 
         frame.add(info);
 
@@ -40,6 +38,4 @@ public class FirstStartWindow {
             info.setText("Checking compatibility...");
         }, 3, TimeUnit.SECONDS);
     }
-
-
 }
