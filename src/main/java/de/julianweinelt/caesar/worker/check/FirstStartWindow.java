@@ -16,7 +16,7 @@ public class FirstStartWindow {
     public static void start() {
         JFrame frame = new JFrame();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);
+        frame.setSize(500, 200);
         frame.setTitle("Caesar Worker - Caesar");
         frame.setResizable(false);
         frame.setLayout(new FlowLayout(FlowLayout.LEFT));
