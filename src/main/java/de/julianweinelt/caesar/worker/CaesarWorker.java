@@ -5,6 +5,7 @@ import de.julianweinelt.caesar.worker.link.DownloadManager;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 
@@ -140,6 +141,7 @@ public class CaesarWorker {
         title = title.replace("_", " ");
         desc = desc.replace("_", " ");
 
+        log.debug("Trying to display tray");
         icon.displayMessage(title, desc, type);
     }
 }

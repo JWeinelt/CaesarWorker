@@ -46,6 +46,10 @@ public class CaesarLinkServer extends WebSocketServer {
                 if (args[0].equalsIgnoreCase("tray-message")) {
                     CaesarWorker.getInstance().displayTray(args[1], args[2], TrayIcon.MessageType.NONE);
                 }
+            } else if (args.length == 4) {
+                if (args[0].equalsIgnoreCase("tray-message")) {
+                    CaesarWorker.getInstance().displayTray(args[1], args[2], TrayIcon.MessageType.valueOf(args[3].toUpperCase()));
+                }
             }
         }
     }
