@@ -14,6 +14,45 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>lwjgl-natives-windows-amd64</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-windows</lwjgl.natives>
+            </properties>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-windows-x86</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                    <arch>x86</arch>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-windows-x86</lwjgl.natives>
+            </properties>
+        </profile>
+    </profiles>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.lwjgl</groupId>
+                <artifactId>lwjgl-bom</artifactId>
+                <version>3.3.6</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
 
     <distributionManagement>
         <repository>
@@ -68,6 +107,51 @@
             <groupId>org.java-websocket</groupId>
             <artifactId>Java-WebSocket</artifactId>
             <version>1.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-glfw</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-nfd</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-opengl</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-stb</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl</artifactId>
+            <classifier>${lwjgl.natives}</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-glfw</artifactId>
+            <classifier>${lwjgl.natives}</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-nfd</artifactId>
+            <classifier>${lwjgl.natives}</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-opengl</artifactId>
+            <classifier>${lwjgl.natives}</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-stb</artifactId>
+            <classifier>${lwjgl.natives}</classifier>
         </dependency>
     </dependencies>
 
