@@ -2,15 +2,18 @@ package de.julianweinelt.caesar.worker;
 
 import de.julianweinelt.caesar.worker.link.CaesarLinkServer;
 import de.julianweinelt.caesar.worker.link.DownloadManager;
+import de.julianweinelt.caesar.worker.link.UnzipFiles;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
+import java.util.List;
 
 @Slf4j
 public class CaesarWorker {
+    public static final String version = "2.0.2";
     @Getter
     private TrayIcon icon;
 
@@ -23,12 +26,16 @@ public class CaesarWorker {
     @Getter
     private static CaesarWorker instance;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         instance = new CaesarWorker();
-        instance.start();
+        instance.start(args);
     }
 
-    public void start() {
+    public void start(String[] args) throws Exception {
+        new File("app.lock").createNewFile();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            new File("app.lock").delete();
+        }));
         downloadManager = new DownloadManager(10);
         log.info("Starting Caesar Worker");
         File trayIconFile = new File("assets/logo.png");
@@ -36,13 +43,24 @@ public class CaesarWorker {
         trayIconFile.getParentFile().mkdir();
         if (!trayIconFile.exists()) {
             log.info("Starting download of necessary assets");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/logo.png", "assets/logo.png");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_ready.png", "assets/status/logo_ready.png");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_afk.png", "assets/status/logo_afk.png");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_dnd.png", "assets/status/logo_dnd.png");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_busy.png", "assets/status/logo_busy.png");
-            downloadManager.downloadFile("https://api.caesarnet.cloud/download/misc/status/logo_offline.png", "assets/status/logo_offline.png");
-            System.exit(1);
+            downloadManager.downloadFile("https://api.caesarnet.cloud/downloads/misc/logo.png", "assets/logo.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/downloads/misc/status/logo_ready.png", "assets/status/logo_ready.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/downloads/misc/status/logo_afk.png", "assets/status/logo_afk.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/downloads/misc/status/logo_dnd.png", "assets/status/logo_dnd.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/downloads/misc/status/logo_busy.png", "assets/status/logo_busy.png");
+            downloadManager.downloadFile("https://api.caesarnet.cloud/downloads/misc/status/logo_offline.png", "assets/status/logo_offline.png");
+        }
+        if (!new File("assets/mc-icons").exists()) {
+            downloadManager.downloadFileAsync("https://api.caesarnet.cloud/public/download/mc-icons", "assets/mc-icons.zip").thenRun(() -> {
+                UnzipFiles.unzip("assets/mc-icons.zip", "assets/mc-icons");
+                new File("assets/mc-icons.zip").delete();
+            });
+        }
+        if (!new File("assets/emojis").exists()) {
+            downloadManager.downloadFileAsync("https://api.caesarnet.cloud/public/download/emojis", "assets/emojis.zip").thenRun(() -> {
+                UnzipFiles.unzip("assets/emojis.zip", "assets/emojis");
+                new File("assets/emojis.zip").delete();
+            });
         }
         try {
             initTrayIcon();
@@ -51,6 +69,9 @@ public class CaesarWorker {
         }
         linkServer = new CaesarLinkServer();
         linkServer.start();
+
+        if (args.length == 1 && args[0].equalsIgnoreCase("--updated")) return;
+        linkServer.runExe("Caesar.exe", List.of(), new File("."));
     }
 
     private void initTrayIcon() throws AWTException {
@@ -60,9 +81,7 @@ public class CaesarWorker {
             Image image = Toolkit.getDefaultToolkit().createImage("assets/logo.png");
 
             icon = new TrayIcon(image, "Caesar Worker");
-            //Let the system resize the image if needed
             icon.setImageAutoSize(true);
-            //Set tooltip text for the tray icon
             icon.setToolTip("Caesar Worker");
             tray.add(icon);
 
