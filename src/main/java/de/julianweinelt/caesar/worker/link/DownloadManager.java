@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -75,6 +76,54 @@ public class DownloadManager {
 
         tasks.add(task);
     }
+
+    public CompletableFuture<Void> downloadFileAsync(String fileURL, String saveDir) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                URL url = new URL(fileURL);
+                HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
+                int responseCode = httpConn.getResponseCode();
+
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    String fileName;
+                    String disposition = httpConn.getHeaderField("Content-Disposition");
+
+                    if (disposition != null) {
+                        fileName = disposition.split("filename=")[1].replace("\"", "");
+                    } else {
+                        fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1);
+                    }
+
+                    downloadFiles.put(fileName, UUID.randomUUID());
+
+                    InputStream inputStream = httpConn.getInputStream();
+                    Path savePath = Paths.get(saveDir);
+                    Files.createDirectories(savePath.getParent());
+
+                    try (FileOutputStream outputStream = new FileOutputStream(savePath.toFile())) {
+                        byte[] buffer = new byte[4096];
+                        long totalRead = 0;
+                        int bytesRead;
+                        long contentLength = httpConn.getContentLengthLong();
+
+                        while ((bytesRead = inputStream.read(buffer)) != -1) {
+                            outputStream.write(buffer, 0, bytesRead);
+                            totalRead += bytesRead;
+                            downloadProgress.put(downloadFiles.get(fileName), (double) totalRead / contentLength);
+                        }
+                        log.info("Download of {} complete. {} bytes downloaded.", fileName, totalRead);
+                    }
+                    inputStream.close();
+                    httpConn.disconnect();
+                } else {
+                    log.error("No file to download. Server replied HTTP code: {}", responseCode);
+                }
+            } catch (IOException e) {
+                log.error("Error downloading file: {}", e.getMessage());
+            }
+        }, executor);
+    }
+
 
     public void waitForDownloads() {
         tasks.forEach(task -> {
