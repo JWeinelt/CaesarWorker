@@ -18,112 +18,70 @@ import java.util.concurrent.Future;
 
 @Slf4j
 public class DownloadManager {
-    private final HashMap<String, UUID> downloadFiles = new HashMap<>();
-    private final HashMap<UUID, Double> downloadProgress = new HashMap<>();
+
+    private final HashMap<String, Double> downloadProgress = new HashMap<>();
+    private final List<Future<?>> tasks = new ArrayList<>();
 
     private final ExecutorService executor;
-    private final List<Future<?>> tasks = new ArrayList<>();
 
     public DownloadManager(int maxConcurrentDownloads) {
         this.executor = Executors.newFixedThreadPool(maxConcurrentDownloads);
     }
 
-    public void downloadFile(String fileURL, String saveDir) {
-        Future<?> task = executor.submit(() -> {
+    private void download(String fileURL, String saveDir) {
+        try {
+            URL url = new URL(fileURL);
+            HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
+
             try {
-                URL url = new URL(fileURL);
-                HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
                 int responseCode = httpConn.getResponseCode();
-
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    String fileName;
-                    String disposition = httpConn.getHeaderField("Content-Disposition");
-
-                    if (disposition != null) {
-                        fileName = disposition.split("filename=")[1].replace("\"", "");
-                    } else {
-                        fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1);
-                    }
-
-                    downloadFiles.put(fileName, UUID.randomUUID());
-
-                    InputStream inputStream = httpConn.getInputStream();
-                    Path savePath = Paths.get(saveDir);
-                    Files.createDirectories(savePath.getParent());
-
-                    try (FileOutputStream outputStream = new FileOutputStream(savePath.toFile())) {
-                        byte[] buffer = new byte[4096];
-                        long totalRead = 0;
-                        int bytesRead;
-                        long contentLength = httpConn.getContentLengthLong();
-
-                        while ((bytesRead = inputStream.read(buffer)) != -1) {
-                            outputStream.write(buffer, 0, bytesRead);
-                            totalRead += bytesRead;
-                            downloadProgress.put(downloadFiles.get(fileName), (double) totalRead / contentLength);
-                        }
-                        log.info("Download of {} complete. {} bytes downloaded.", fileName, totalRead);
-                    }
-                    inputStream.close();
-                    httpConn.disconnect();
-                } else {
+                if (responseCode != HttpURLConnection.HTTP_OK) {
                     log.error("No file to download. Server replied HTTP code: {}", responseCode);
+                    return;
                 }
-            } catch (IOException e) {
-                log.error("Error downloading file: {}", e.getMessage());
-            }
-        });
 
+                String fileName;
+                String disposition = httpConn.getHeaderField("Content-Disposition");
+
+                if (disposition != null) {
+                    fileName = disposition.split("filename=")[1].replace("\"", "");
+                } else {
+                    fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1);
+                }
+
+                Path savePath = Paths.get(saveDir);
+                Files.createDirectories(savePath.getParent());
+
+                try (InputStream inputStream = httpConn.getInputStream();
+                     FileOutputStream outputStream = new FileOutputStream(savePath.toFile())) {
+                    byte[] buffer = new byte[4096];
+                    long totalRead = 0;
+                    int bytesRead;
+                    long contentLength = httpConn.getContentLengthLong();
+
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        outputStream.write(buffer, 0, bytesRead);
+                        totalRead += bytesRead;
+                        downloadProgress.put(fileName, (double) totalRead / contentLength);
+                    }
+                    log.info("Download of {} complete. {} bytes downloaded.", fileName, totalRead);
+                }
+            } finally {
+                httpConn.disconnect();
+            }
+        } catch (IOException e) {
+            log.error("Error downloading file: {}", e.getMessage());
+        }
+    }
+
+    public void downloadFile(String fileURL, String saveDir) {
+        Future<?> task = executor.submit(() -> this.download(fileURL, saveDir));
         tasks.add(task);
     }
 
     public CompletableFuture<Void> downloadFileAsync(String fileURL, String saveDir) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                URL url = new URL(fileURL);
-                HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
-                int responseCode = httpConn.getResponseCode();
-
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    String fileName;
-                    String disposition = httpConn.getHeaderField("Content-Disposition");
-
-                    if (disposition != null) {
-                        fileName = disposition.split("filename=")[1].replace("\"", "");
-                    } else {
-                        fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1);
-                    }
-
-                    downloadFiles.put(fileName, UUID.randomUUID());
-
-                    InputStream inputStream = httpConn.getInputStream();
-                    Path savePath = Paths.get(saveDir);
-                    Files.createDirectories(savePath.getParent());
-
-                    try (FileOutputStream outputStream = new FileOutputStream(savePath.toFile())) {
-                        byte[] buffer = new byte[4096];
-                        long totalRead = 0;
-                        int bytesRead;
-                        long contentLength = httpConn.getContentLengthLong();
-
-                        while ((bytesRead = inputStream.read(buffer)) != -1) {
-                            outputStream.write(buffer, 0, bytesRead);
-                            totalRead += bytesRead;
-                            downloadProgress.put(downloadFiles.get(fileName), (double) totalRead / contentLength);
-                        }
-                        log.info("Download of {} complete. {} bytes downloaded.", fileName, totalRead);
-                    }
-                    inputStream.close();
-                    httpConn.disconnect();
-                } else {
-                    log.error("No file to download. Server replied HTTP code: {}", responseCode);
-                }
-            } catch (IOException e) {
-                log.error("Error downloading file: {}", e.getMessage());
-            }
-        }, executor);
+        return CompletableFuture.runAsync(() -> this.download(fileURL, saveDir), executor);
     }
-
 
     public void waitForDownloads() {
         tasks.forEach(task -> {
@@ -133,10 +91,14 @@ public class DownloadManager {
                 log.error("Error waiting for download: {}", e.getMessage());
             }
         });
+    }
+
+    public void shutdown() {
         executor.shutdown();
     }
 
     public double getDownloadProgress(String fileName) {
-        return downloadProgress.getOrDefault(downloadFiles.getOrDefault(fileName, UUID.randomUUID()), 0.0);
+        return downloadProgress.getOrDefault(fileName, 0.0);
     }
+
 }

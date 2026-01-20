@@ -2,81 +2,73 @@ package de.julianweinelt.caesar.worker.link;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 @Slf4j
 public class UnzipFiles {
-    public static void unzip(String zipFilePath, String destDir) {
-        log.info("Unzipping " + zipFilePath + " to " + destDir);
-        File dir = new File(destDir);
-        if(!dir.exists()) dir.mkdirs();
-        FileInputStream fis;
-        byte[] buffer = new byte[1024];
-        try {
-            fis = new FileInputStream(zipFilePath);
-            ZipInputStream zis = new ZipInputStream(fis);
-            ZipEntry ze = zis.getNextEntry();
-            while(ze != null){
-                String fileName = ze.getName();
-                File newFile = new File(destDir + File.separator + fileName);
-                new File(newFile.getParent()).mkdirs();
-                FileOutputStream fos = new FileOutputStream(newFile);
-                int len;
-                while ((len = zis.read(buffer)) > 0) {
-                fos.write(buffer, 0, len);
-                }
-                fos.close();
-                zis.closeEntry();
-                ze = zis.getNextEntry();
-            }
-            zis.closeEntry();
-            zis.close();
-            fis.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        
+
+    private UnzipFiles() {
     }
-    public static CompletableFuture<Void> unzipFuture(String zipFilePath, String destDir) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        log.info("Unzipping " + zipFilePath + " to " + destDir);
-        File dir = new File(destDir);
-        if(!dir.exists()) dir.mkdirs();
-        FileInputStream fis;
-        byte[] buffer = new byte[1024];
+
+    public static void unzip(String target, String destination, CopyOption... copyOptions) {
         try {
-            fis = new FileInputStream(zipFilePath);
-            ZipInputStream zis = new ZipInputStream(fis);
-            ZipEntry ze = zis.getNextEntry();
-            while(ze != null){
-                String fileName = ze.getName();
-                File newFile = new File(destDir + File.separator + fileName);
-                new File(newFile.getParent()).mkdirs();
-                FileOutputStream fos = new FileOutputStream(newFile);
-                int len;
-                while ((len = zis.read(buffer)) > 0) {
-                fos.write(buffer, 0, len);
-                }
-                fos.close();
-                zis.closeEntry();
-                ze = zis.getNextEntry();
+            log.info("Unzipping {} to {}", target, destination);
+
+            Path destinationPath = Path.of(destination);
+            if (!Files.exists(destinationPath)) {
+                Files.createDirectories(destinationPath);
             }
-            zis.closeEntry();
-            zis.close();
-            fis.close();
-            future.complete(null);
+
+            try (FileInputStream fileInputStream = new FileInputStream(target);
+                 ZipInputStream zipInputStream = new ZipInputStream(fileInputStream)) {
+                while (!Thread.currentThread().isInterrupted()) {
+                    ZipEntry entry = zipInputStream.getNextEntry();
+
+                    if (entry == null) {
+                        break;
+                    }
+
+                    try {
+                        String entryName = entry.getName();
+                        Path entryDestination = destinationPath.resolve(entryName);
+                        if (entry.isDirectory()) {
+                            Files.createDirectories(entryDestination);
+                            continue;
+                        }
+
+                        Files.copy(zipInputStream, entryDestination, copyOptions);
+                    } finally {
+                        zipInputStream.closeEntry();
+                    }
+                }
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new UncheckedIOException("Failed to unzip %s: %s".formatted(
+                    target,
+                    e.getMessage()
+            ), e);
+        }
+    }
+
+    public static CompletableFuture<Void> unzipFuture(String target, String destination, CopyOption... copyOptions) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        try {
+            unzip(target, destination, copyOptions);
+            future.complete(null);
+        } catch (UncheckedIOException e) {
             future.completeExceptionally(e);
         }
-        return future;
 
+        return future;
     }
 
 }
